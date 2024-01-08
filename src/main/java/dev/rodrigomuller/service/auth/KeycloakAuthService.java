@@ -4,6 +4,7 @@ import dev.rodrigomuller.DTO.request.UserRegisterRequestDTO;
 import dev.rodrigomuller.DTO.response.UserRegisterResponseDTO;
 import dev.rodrigomuller.DTO.restclient.*;
 import dev.rodrigomuller.entity.Customer;
+import dev.rodrigomuller.exception.KeycloakRoleNotFoundException;
 import dev.rodrigomuller.exception.KeycloakUserNotFoundException;
 import dev.rodrigomuller.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -13,6 +14,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
+import java.util.Arrays;
 import java.util.Set;
 
 @ApplicationScoped
@@ -48,6 +50,9 @@ public class KeycloakAuthService implements AuthService {
             this.createUserInKeycloak(userRegisterRequestDTO);
             isUserCreatedInKeycloak = true;
             UserResponseDTO userResponseDTO = this.getUserByUsername(userRegisterRequestDTO.getUsername());
+            RoleResponseDTO role = this.getRoleByName(roles.iterator().next());
+            this.syncUserRealm(userResponseDTO.getId(), role);
+
             this.saveInDatabase(userRegisterRequestDTO, userResponseDTO.getId());
 
             UserRegisterResponseDTO userRegisterResponseDTO = new UserRegisterResponseDTO();
@@ -119,5 +124,25 @@ public class KeycloakAuthService implements AuthService {
             throw new KeycloakUserNotFoundException("User not found in keycloak");
         }
         return userResponseDTOs[0];
+    }
+
+    private RoleResponseDTO getRoleByName(String name) {
+        LOG.info("Getting role from keycloak");
+        String bearerToken = "Bearer " + this.adminRealmResponseDTO.getAccess_token();
+        RoleResponseDTO[] roleResponseDTOs = this.keycloakRESTAdminService.getRoles(bearerToken, usersRealm);
+        if (roleResponseDTOs.length == 0) {
+            throw new KeycloakRoleNotFoundException("Role not found in keycloak");
+        }
+        return Arrays.stream(roleResponseDTOs).filter(roleResponseDTO -> roleResponseDTO.getName().equals(name)).findFirst().orElseThrow(KeycloakRoleNotFoundException::new);
+    }
+
+    private void syncUserRealm(String userId, RoleResponseDTO role) {
+        LOG.info("Syncing user realm");
+        String bearerToken = "Bearer " + this.adminRealmResponseDTO.getAccess_token();
+        UserRoleRequestDTO[] userRoleRequestDTOs = new UserRoleRequestDTO[1];
+        userRoleRequestDTOs[0] = new UserRoleRequestDTO();
+        userRoleRequestDTOs[0].setId(role.getId());
+        userRoleRequestDTOs[0].setName(role.getName());
+        this.keycloakRESTAdminService.syncUserRoles(bearerToken, usersRealm, userId, userRoleRequestDTOs);
     }
 }
