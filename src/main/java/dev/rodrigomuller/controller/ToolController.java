@@ -3,8 +3,6 @@ package dev.rodrigomuller.controller;
 import dev.rodrigomuller.DTO.request.ToolRequestDTO;
 import dev.rodrigomuller.DTO.response.ToolResponseDTO;
 import dev.rodrigomuller.service.ToolService;
-import io.quarkus.security.identity.SecurityIdentity;
-import io.smallrye.mutiny.Uni;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.validation.Valid;
@@ -20,14 +18,11 @@ import java.util.List;
 public class ToolController {
 
     private final ToolService toolService;
-    private final SecurityIdentity securityIdentity;
 
     ToolController(
-            ToolService toolService,
-            SecurityIdentity securityIdentity
+            ToolService toolService
             ) {
         this.toolService = toolService;
-        this.securityIdentity = securityIdentity;
     }
 
     @GET
@@ -66,6 +61,6 @@ public class ToolController {
     @Path("/me")
     @RolesAllowed("user")
     public List<ToolResponseDTO> getMyOffers() {
-        return this.toolService.getUserOffers(this.securityIdentity);
+        return this.toolService.getUserOffers();
     }
 }

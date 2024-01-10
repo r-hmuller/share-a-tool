@@ -5,6 +5,7 @@ import dev.rodrigomuller.DTO.response.ToolResponseDTO;
 import dev.rodrigomuller.entity.Tool;
 import org.mapstruct.Mapper;
 
+import java.util.Collection;
 import java.util.List;
 
 
@@ -13,5 +14,5 @@ public interface ToolMapper {
     Tool toEntity(ToolRequestDTO toolRequestDTO);
     ToolResponseDTO toDTO(Tool tool);
 
-    List<ToolResponseDTO> toDTOList(List<Tool> tools);
+    List<ToolResponseDTO> toDTOList(Collection<Tool> tools);
 }

@@ -6,9 +6,8 @@ import dev.rodrigomuller.DTO.restclient.*;
 import dev.rodrigomuller.entity.Customer;
 import dev.rodrigomuller.exception.KeycloakRoleNotFoundException;
 import dev.rodrigomuller.exception.KeycloakUserNotFoundException;
-import dev.rodrigomuller.repository.UserRepository;
+import dev.rodrigomuller.repository.CustomerRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -22,12 +21,18 @@ public class KeycloakAuthService implements AuthService {
 
     private static final Logger LOG = Logger.getLogger(KeycloakAuthService.class);
 
-    @Inject
-    @RestClient
     KeycloakRESTAdminService keycloakRESTAdminService;
 
-    @Inject
-    UserRepository userRepository;
+    CustomerRepository customerRepository;
+
+    public KeycloakAuthService(
+            CustomerRepository customerRepository,
+            @RestClient
+            KeycloakRESTAdminService keycloakRESTAdminService
+    ) {
+        this.customerRepository = customerRepository;
+        this.keycloakRESTAdminService = keycloakRESTAdminService;
+    }
 
     private AdminRealmResponseDTO adminRealmResponseDTO;
 
@@ -104,7 +109,7 @@ public class KeycloakAuthService implements AuthService {
         customer.setKeycloakId(keycloakId);
 
         LOG.info("Saving user in database");
-        this.userRepository.persist(customer);
+        this.customerRepository.persist(customer);
         return customer;
     }
 

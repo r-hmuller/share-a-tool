@@ -2,28 +2,39 @@ package dev.rodrigomuller.service;
 
 import dev.rodrigomuller.DTO.request.ToolRequestDTO;
 import dev.rodrigomuller.DTO.response.ToolResponseDTO;
+import dev.rodrigomuller.entity.Customer;
 import dev.rodrigomuller.entity.Tool;
+import dev.rodrigomuller.exception.CustomerNotFoundException;
 import dev.rodrigomuller.mapper.ToolMapper;
+import dev.rodrigomuller.repository.CustomerRepository;
 import dev.rodrigomuller.repository.ToolRepository;
-import io.quarkus.security.identity.SecurityIdentity;
-import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.jboss.logging.Logger;
 
-import java.util.ArrayList;
 import java.util.List;
-
-import static io.smallrye.config.ConfigLogging.log;
 
 @ApplicationScoped
 public class ToolService {
     private final ToolRepository toolRepository;
     private final ToolMapper toolMapper;
+
+    private final CustomerRepository customerRepository;
+
+    private final JsonWebToken jwt;
+
+    private static final Logger LOG = Logger.getLogger(ToolService.class);
     public ToolService(
             ToolRepository toolRepository,
-            ToolMapper toolMapper
+            ToolMapper toolMapper,
+            CustomerRepository customerRepository,
+            JsonWebToken jwt
             ) {
         this.toolRepository = toolRepository;
         this.toolMapper = toolMapper;
+        this.customerRepository = customerRepository;
+        this.jwt = jwt;
     }
 
     public List<ToolResponseDTO> getAll() {
@@ -37,12 +48,16 @@ public class ToolService {
         return this.toolMapper.toDTO(tool);
     }
 
+    @Transactional
     public ToolResponseDTO save(ToolRequestDTO toolRequestDTO) {
+        Customer customer = this.getCustomer();
         Tool tool = this.toolMapper.toEntity(toolRequestDTO);
+        tool.setOwner(customer);
         this.toolRepository.persist(tool);
         return this.toolMapper.toDTO(tool);
     }
 
+    @Transactional
     public ToolResponseDTO update(Long id, ToolRequestDTO toolRequestDTO) {
         Tool updatedTool = this.toolRepository.findByIdOptional(id).orElseThrow();
         updatedTool.setName(toolRequestDTO.getName());
@@ -60,10 +75,13 @@ public class ToolService {
     }
 
 
-    public List<ToolResponseDTO> getUserOffers(SecurityIdentity securityIdentity) {
-        System.out.println(securityIdentity.getPrincipal().getName());
-        System.out.println(securityIdentity.getPrincipal());
+    public List<ToolResponseDTO> getUserOffers() {
+        Customer customer = this.getCustomer();
+        return this.toolMapper.toDTOList(customer.getTools().stream().toList());
+    }
 
-        return new ArrayList<>();
+    private Customer getCustomer() {
+        return this.customerRepository.findByKeycloakId(this.jwt.getSubject()).
+                orElseThrow(CustomerNotFoundException::new);
     }
 }
